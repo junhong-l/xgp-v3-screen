@@ -15,7 +15,7 @@ screen_config_t g_screen_config;
 void init_default_config(void)
 {
     g_screen_config.enabled = true;
-    g_screen_config.scroll_type = SCROLL_TYPE_SLIDE;
+    g_screen_config.scroll_type = SCROLL_TYPE_SLIDE_UP;
     g_screen_config.default_delay = 5000;
     g_screen_config.skip_boot = false;
     g_screen_config.skip_splash = false;
