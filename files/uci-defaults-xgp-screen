@@ -1,0 +1,50 @@
+#!/bin/sh
+# 初始化默认配置
+
+uci -q get xgp_screen.main >/dev/null || {
+    uci set xgp_screen.main=screen
+    uci set xgp_screen.main.enabled='1'
+    uci set xgp_screen.main.scroll_type='slide'
+    uci set xgp_screen.main.default_delay='5000'
+    uci set xgp_screen.main.skip_boot='0'
+    uci set xgp_screen.main.skip_splash='0'
+}
+
+uci -q get xgp_screen.system_info >/dev/null || {
+    uci set xgp_screen.system_info=page
+    uci set xgp_screen.system_info.enabled='1'
+    uci set xgp_screen.system_info.delay='5000'
+    uci set xgp_screen.system_info.order='1'
+}
+
+uci -q get xgp_screen.system_status >/dev/null || {
+    uci set xgp_screen.system_status=page
+    uci set xgp_screen.system_status.enabled='1'
+    uci set xgp_screen.system_status.delay='5000'
+    uci set xgp_screen.system_status.order='2'
+}
+
+uci -q get xgp_screen.network_info >/dev/null || {
+    uci set xgp_screen.network_info=page
+    uci set xgp_screen.network_info.enabled='1'
+    uci set xgp_screen.network_info.delay='5000'
+    uci set xgp_screen.network_info.order='3'
+}
+
+uci -q get xgp_screen.modem_info >/dev/null || {
+    uci set xgp_screen.modem_info=page
+    uci set xgp_screen.modem_info.enabled='1'
+    uci set xgp_screen.modem_info.delay='5000'
+    uci set xgp_screen.modem_info.order='4'
+}
+
+uci -q get xgp_screen.modem_signal >/dev/null || {
+    uci set xgp_screen.modem_signal=page
+    uci set xgp_screen.modem_signal.enabled='1'
+    uci set xgp_screen.modem_signal.delay='5000'
+    uci set xgp_screen.modem_signal.order='5'
+}
+
+uci commit xgp_screen
+
+exit 0

@@ -1,0 +1,175 @@
+#!/bin/sh /etc/rc.common
+
+START=99
+STOP=01
+USE_PROCD=1
+PROG=/usr/zz/zz_xgp_screen
+SERVICE_NAME="zz_xgp_screen"
+PID_FILE="/var/run/${SERVICE_NAME}.pid"
+
+# 检查屏幕是否在配置中启用
+is_screen_enabled() {
+    local enabled
+    enabled=$(uci -q get xgp_screen.main.enabled)
+    [ "$enabled" = "1" ] && return 0
+    return 1
+}
+
+# 检测framebuffer设备
+# 返回: 0=找到设备, 1=未找到
+# 设置 FB_DEVICE 变量为找到的设备路径
+detect_framebuffer() {
+    # 优先使用配置文件中指定的设备
+    local config_device
+    config_device=$(uci -q get xgp_screen.main.fb_device)
+    if [ -n "$config_device" ] && [ -c "$config_device" ]; then
+        FB_DEVICE="$config_device"
+        return 0
+    fi
+    
+    # 其次使用环境变量指定的设备
+    if [ -n "$LV_LINUX_FBDEV_DEVICE" ] && [ -c "$LV_LINUX_FBDEV_DEVICE" ]; then
+        FB_DEVICE="$LV_LINUX_FBDEV_DEVICE"
+        return 0
+    fi
+    
+    # 检测 fb1 (通常是外接TFT屏幕)
+    if [ -c /dev/fb1 ]; then
+        FB_DEVICE="/dev/fb1"
+        return 0
+    fi
+    
+    # 检测 fb0 (通用framebuffer)
+    if [ -c /dev/fb0 ]; then
+        FB_DEVICE="/dev/fb0"
+        return 0
+    fi
+    
+    return 1
+}
+
+# 禁用 framebuffer 控制台输出
+# 这可以防止内核日志（如设备插拔事件）显示在屏幕上
+disable_fb_console() {
+    local fb_num
+    
+    # 从设备路径提取数字 (例如 /dev/fb1 -> 1)
+    fb_num=$(echo "$FB_DEVICE" | sed 's/.*fb\([0-9]*\)/\1/')
+    
+    # 方法1: 使用 con2fbmap 解除控制台与 framebuffer 的绑定
+    if command -v con2fbmap >/dev/null 2>&1; then
+        # 将所有虚拟控制台从该 framebuffer 解绑
+        for i in 1 2 3 4 5 6; do
+            con2fbmap "$i" 0 2>/dev/null
+        done
+    fi
+    
+    # 方法2: 通过 sysfs 禁用 fbcon
+    if [ -f /sys/class/graphics/fb${fb_num}/blank ]; then
+        # 先 unblank 确保屏幕开启
+        echo 0 > /sys/class/graphics/fb${fb_num}/blank 2>/dev/null
+    fi
+    
+    # 方法3: 设置内核打印级别，减少控制台输出
+    if [ -f /proc/sys/kernel/printk ]; then
+        # 保存原始值
+        cat /proc/sys/kernel/printk > /tmp/xgp_screen_printk_orig 2>/dev/null
+        # 设置为只显示紧急消息 (级别 1)
+        echo "1 1 1 1" > /proc/sys/kernel/printk 2>/dev/null
+    fi
+    
+    # 方法4: 使用 setterm 关闭光标和清屏
+    if command -v setterm >/dev/null 2>&1; then
+        setterm -cursor off 2>/dev/null
+    fi
+    
+    # 方法5: 清空 framebuffer (填充黑色)
+    if [ -c "$FB_DEVICE" ]; then
+        dd if=/dev/zero of="$FB_DEVICE" bs=1024 count=256 2>/dev/null
+    fi
+}
+
+# 恢复控制台设置
+restore_fb_console() {
+    # 恢复内核打印级别
+    if [ -f /tmp/xgp_screen_printk_orig ]; then
+        cat /tmp/xgp_screen_printk_orig > /proc/sys/kernel/printk 2>/dev/null
+        rm -f /tmp/xgp_screen_printk_orig
+    fi
+    
+    # 恢复光标
+    if command -v setterm >/dev/null 2>&1; then
+        setterm -cursor on 2>/dev/null
+    fi
+}
+
+start_service() {
+    # 检查配置是否启用
+    if ! is_screen_enabled; then
+        echo "XGP Screen is disabled in config."
+        return 0
+    fi
+    
+    # 检测framebuffer设备
+    if ! detect_framebuffer; then
+        echo "Error: No framebuffer device found (/dev/fb0 or /dev/fb1)." >&2
+        echo "Please install a framebuffer driver for your display (e.g. kmod-fb-tft-gc9307)." >&2
+        return 1
+    fi
+    
+    echo "Using framebuffer device: $FB_DEVICE"
+    
+    # 禁用控制台输出到 framebuffer，防止日志干扰屏幕显示
+    disable_fb_console
+    
+    # 开启背光
+    set_backlight 1
+    
+    procd_open_instance
+    procd_set_param env LV_LINUX_FBDEV_DEVICE="$FB_DEVICE"
+    procd_set_param command "$PROG"
+    procd_set_param respawn 3600 5 5
+    procd_set_param stdout 1
+    procd_set_param stderr 1
+    procd_set_param pidfile "$PID_FILE"
+    procd_close_instance
+}
+
+# 控制屏幕背光
+set_backlight() {
+    local on="$1"
+    local paths="/sys/devices/platform/led-controller/leds/blue:backlight/brightness
+/sys/class/leds/blue:backlight/brightness
+/sys/class/backlight/backlight/brightness"
+    
+    for path in $paths; do
+        if [ -w "$path" ]; then
+            if [ "$on" = "1" ]; then
+                echo 255 > "$path" 2>/dev/null
+            else
+                echo 0 > "$path" 2>/dev/null
+            fi
+            return 0
+        fi
+    done
+}
+
+stop_service() {
+    # 关闭背光
+    set_backlight 0
+    
+    # 清空屏幕（显示黑色）
+    detect_framebuffer && dd if=/dev/zero of="$FB_DEVICE" bs=1024 count=256 2>/dev/null
+    
+    # 恢复控制台设置
+    restore_fb_console
+}
+
+service_triggers() {
+    procd_add_reload_trigger "xgp_screen"
+}
+
+reload_service() {
+    stop
+    start
+}
