@@ -343,6 +343,7 @@ int count_arp_online()
 
 static uint32_t update_screen_data_time_counter = 0;
 static uint32_t update_modem_data_time_counter = 10;
+static uint32_t check_config_time_counter = 0;  // 配置文件检查计数器
 
 static long memory_total_bytes = 0;
 static char buf_memory_total_bytes[DEFAULT_VALUE_SIZE];
@@ -808,6 +809,23 @@ int main(void)
         lv_timer_handler();
         usleep(5000);
         update_screen_data_time_counter++;
+        check_config_time_counter++;
+
+        // 每 10 秒检查一次配置文件是否被修改为禁用
+        if (check_config_time_counter >= 2000)  // 2000 * 5ms = 10秒
+        {
+            check_config_time_counter = 0;
+            // 重新加载配置
+            load_screen_config();
+            if (!g_screen_config.enabled) {
+                printf("Config changed to disabled, exiting gracefully...\n");
+                printf("========================================\n");
+                printf("XGP V3 Screen stopped (disabled in config)\n");
+                printf("========================================\n");
+                break;  // 退出主循环
+            }
+        }
+
         if (update_screen_data_time_counter >= 200)
         {
             update_screen_data_time_counter = 0;
@@ -820,6 +838,10 @@ int main(void)
             parse_modem_info();
         }
     }
+
+    // 清理并退出
+    screen_manager_stop();
+    ui_destroy();
 
     return 0;
 }

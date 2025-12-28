@@ -106,25 +106,42 @@ restore_fb_console() {
 start_service() {
     # 检查配置是否启用
     if ! is_screen_enabled; then
-        echo "XGP Screen is disabled in config."
+        echo "XGP Screen is disabled in config (enabled=$(uci -q get xgp_screen.main.enabled)), not starting."
+
+        # 即使程序不启动，也要清理屏幕（防止之前的启动画面残留）
+        if detect_framebuffer; then
+            echo "Cleaning up framebuffer device: $FB_DEVICE"
+            # 禁用控制台输出
+            disable_fb_console
+            # 清空屏幕（显示黑色）
+            dd if=/dev/zero of="$FB_DEVICE" bs=1024 count=256 2>/dev/null
+            # 关闭背光
+            set_backlight 0
+            echo "Screen cleaned and backlight turned off"
+        fi
+
+        # 确保如果程序正在运行，则停止它
+        stop_service
         return 0
     fi
-    
+
+    echo "XGP Screen is enabled in config, starting service..."
+
     # 检测framebuffer设备
     if ! detect_framebuffer; then
         echo "Error: No framebuffer device found (/dev/fb0 or /dev/fb1)." >&2
         echo "Please install a framebuffer driver for your display (e.g. kmod-fb-tft-gc9307)." >&2
         return 1
     fi
-    
+
     echo "Using framebuffer device: $FB_DEVICE"
-    
+
     # 禁用控制台输出到 framebuffer，防止日志干扰屏幕显示
     disable_fb_console
-    
+
     # 开启背光
     set_backlight 1
-    
+
     procd_open_instance
     procd_set_param env LV_LINUX_FBDEV_DEVICE="$FB_DEVICE"
     procd_set_param command "$PROG"
@@ -133,6 +150,8 @@ start_service() {
     procd_set_param stderr 1
     procd_set_param pidfile "$PID_FILE"
     procd_close_instance
+
+    echo "XGP Screen service started successfully"
 }
 
 # 控制屏幕背光
@@ -155,14 +174,18 @@ set_backlight() {
 }
 
 stop_service() {
+    echo "Stopping XGP Screen service..."
+
     # 关闭背光
     set_backlight 0
-    
+
     # 清空屏幕（显示黑色）
     detect_framebuffer && dd if=/dev/zero of="$FB_DEVICE" bs=1024 count=256 2>/dev/null
-    
+
     # 恢复控制台设置
     restore_fb_console
+
+    echo "XGP Screen service stopped"
 }
 
 service_triggers() {

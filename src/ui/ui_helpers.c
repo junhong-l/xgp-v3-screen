@@ -52,9 +52,23 @@ void _ui_slider_set_property(lv_obj_t * target, int id, int val)
 void _ui_screen_change(lv_obj_t ** target, lv_screen_load_anim_t fademode, int spd, int delay,
                        void (*target_init)(void))
 {
-    if(*target == NULL)
+    printf("_ui_screen_change: target=%p, *target=%p, init=%p\n",
+           (void*)target, target ? (void*)*target : NULL, (void*)target_init);
+
+    if(*target == NULL) {
+        printf("_ui_screen_change: *target is NULL, calling init_func\n");
         target_init();
-    lv_screen_load_anim(*target, fademode, spd, delay, false);
+        printf("_ui_screen_change: After init, *target=%p\n", (void*)*target);
+    }
+
+    if (*target != NULL) {
+        printf("_ui_screen_change: Loading screen with anim (mode=%d, spd=%d, delay=%d)\n",
+               fademode, spd, delay);
+        lv_screen_load_anim(*target, fademode, spd, delay, false);
+        printf("_ui_screen_change: Screen loaded successfully\n");
+    } else {
+        printf("_ui_screen_change: ERROR: *target is still NULL after init!\n");
+    }
 }
 
 void _ui_screen_delete(lv_obj_t ** target)
