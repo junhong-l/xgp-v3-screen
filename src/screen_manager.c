@@ -20,24 +20,12 @@ static void update_page_number_timer_cb(lv_timer_t *timer)
 lv_obj_t** screen_manager_get_screen(page_type_t page)
 {
     switch (page) {
-        case PAGE_SYSTEM_INFO:
-            printf("screen_manager_get_screen: SYSTEM_INFO -> &ui_SystemInfo\n");
-            return &ui_SystemInfo;
-        case PAGE_SYSTEM_STATUS:
-            printf("screen_manager_get_screen: SYSTEM_STATUS -> &ui_SystemStatus\n");
-            return &ui_SystemStatus;
-        case PAGE_NETWORK_INFO:
-            printf("screen_manager_get_screen: NETWORK_INFO -> &ui_NetworkInfo\n");
-            return &ui_NetworkInfo;
-        case PAGE_MODEM_INFO:
-            printf("screen_manager_get_screen: MODEM_INFO -> &ui_ModemInfo\n");
-            return &ui_ModemInfo;
-        case PAGE_MODEM_SIGNAL:
-            printf("screen_manager_get_screen: MODEM_SIGNAL -> &ui_ModemSignal\n");
-            return &ui_ModemSignal;
-        default:
-            printf("screen_manager_get_screen: UNKNOWN page type %d\n", page);
-            return NULL;
+        case PAGE_SYSTEM_INFO: return &ui_SystemInfo;
+        case PAGE_SYSTEM_STATUS: return &ui_SystemStatus;
+        case PAGE_NETWORK_INFO: return &ui_NetworkInfo;
+        case PAGE_MODEM_INFO: return &ui_ModemInfo;
+        case PAGE_MODEM_SIGNAL: return &ui_ModemSignal;
+        default: return NULL;
     }
 }
 
@@ -45,24 +33,12 @@ lv_obj_t** screen_manager_get_screen(page_type_t page)
 void (*screen_manager_get_init_func(page_type_t page))(void)
 {
     switch (page) {
-        case PAGE_SYSTEM_INFO:
-            printf("screen_manager_get_init_func: SYSTEM_INFO -> ui_SystemInfo_screen_init\n");
-            return ui_SystemInfo_screen_init;
-        case PAGE_SYSTEM_STATUS:
-            printf("screen_manager_get_init_func: SYSTEM_STATUS -> ui_SystemStatus_screen_init\n");
-            return ui_SystemStatus_screen_init;
-        case PAGE_NETWORK_INFO:
-            printf("screen_manager_get_init_func: NETWORK_INFO -> ui_NetworkInfo_screen_init\n");
-            return ui_NetworkInfo_screen_init;
-        case PAGE_MODEM_INFO:
-            printf("screen_manager_get_init_func: MODEM_INFO -> ui_ModemInfo_screen_init\n");
-            return ui_ModemInfo_screen_init;
-        case PAGE_MODEM_SIGNAL:
-            printf("screen_manager_get_init_func: MODEM_SIGNAL -> ui_ModemSignal_screen_init\n");
-            return ui_ModemSignal_screen_init;
-        default:
-            printf("screen_manager_get_init_func: UNKNOWN page type %d\n", page);
-            return NULL;
+        case PAGE_SYSTEM_INFO: return ui_SystemInfo_screen_init;
+        case PAGE_SYSTEM_STATUS: return ui_SystemStatus_screen_init;
+        case PAGE_NETWORK_INFO: return ui_NetworkInfo_screen_init;
+        case PAGE_MODEM_INFO: return ui_ModemInfo_screen_init;
+        case PAGE_MODEM_SIGNAL: return ui_ModemSignal_screen_init;
+        default: return NULL;
     }
 }
 
@@ -94,7 +70,6 @@ static void switch_timer_cb(lv_timer_t *timer)
 void screen_manager_next(void)
 {
     if (g_screen_config.enabled_page_count == 0) {
-        printf("screen_manager_next: No pages enabled!\n");
         return;
     }
 
@@ -104,13 +79,8 @@ void screen_manager_next(void)
 
     page_type_t next_page = g_screen_config.page_order[g_screen_manager.current_page_index];
 
-    printf("screen_manager_next: index=%d, page_type=%d (%s)\n",
-           g_screen_manager.current_page_index, next_page, page_type_to_name(next_page));
-
     lv_obj_t **screen = screen_manager_get_screen(next_page);
     void (*init_func)(void) = screen_manager_get_init_func(next_page);
-
-    printf("screen_manager_next: screen=%p, init_func=%p\n", (void*)screen, (void*)init_func);
 
     if (screen != NULL && init_func != NULL) {
         // 获取当前页面的停留时间
@@ -124,20 +94,10 @@ void screen_manager_next(void)
             lv_timer_set_period(g_screen_manager.switch_timer, delay);
         }
 
-        printf("screen_manager_next: Calling _ui_screen_change and init_func\n");
         _ui_screen_change(screen, screen_manager_get_anim_type(), 200, 0, init_func);
 
         // 延迟更新页码显示 (等待页面初始化完成)
         lv_timer_create(update_page_number_timer_cb, 50, (void*)(intptr_t)next_page);
-
-        printf("Switched to page: %s (%d/%d, delay: %dms)\n",
-            page_type_to_name(next_page),
-            g_screen_manager.current_page_index + 1,
-            g_screen_config.enabled_page_count,
-            delay);
-    } else {
-        printf("ERROR: screen=%p, init_func=%p - cannot switch page!\n",
-               (void*)screen, (void*)init_func);
     }
 }
 

@@ -193,15 +193,5 @@ int load_screen_config(void)
     // 重新计算页面顺序
     recalculate_page_order();
 
-    printf("Config loaded from %s: enabled=%d, scroll_type=%d, pages=%d\n",
-           CONFIG_FILE, g_screen_config.enabled,
-           g_screen_config.scroll_type, g_screen_config.enabled_page_count);
-
-    if (!g_screen_config.enabled) {
-        printf("Screen is DISABLED in configuration\n");
-    } else if (g_screen_config.enabled_page_count == 0) {
-        printf("Warning: Screen is enabled but no pages are enabled!\n");
-    }
-
     return 0;
 }

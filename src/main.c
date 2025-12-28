@@ -756,53 +756,35 @@ static void update_screen_data(void)
 
 int main(void)
 {
-    printf("========================================\n");
-    printf("XGP V3 Screen starting...\n");
-    printf("========================================\n");
-
     // 加载配置
-    printf("Loading configuration...\n");
     load_screen_config();
 
     // 检查是否启用
     if (!g_screen_config.enabled) {
-        printf("Screen is DISABLED in config, exiting gracefully.\n");
         return 0;
     }
 
     if (g_screen_config.enabled_page_count == 0) {
-        printf("ERROR: Screen is enabled but NO pages are enabled!\n");
-        printf("Please enable at least one page in /etc/config/xgp_screen\n");
+        fprintf(stderr, "ERROR: Screen is enabled but NO pages are enabled!\n");
         return 1;
     }
 
-    printf("Initializing LVGL...\n");
     lv_init();
 
     /*Linux display device init*/
-    printf("Initializing framebuffer display...\n");
     lv_linux_disp_init();
 
     // 初始化UI (不使用原有的自动切换)
-    printf("Initializing UI screens...\n");
     ui_init_screens_only();
 
     // 初始化屏幕管理器
-    printf("Initializing screen manager...\n");
     screen_manager_init();
 
     /*Handle LVGL tasks*/
-    printf("Updating static system values...\n");
     update_static_value();
 
     // 启动屏幕管理器 (自动切换)
-    printf("Starting screen manager (auto-switching)...\n");
     screen_manager_start();
-
-    printf("========================================\n");
-    printf("XGP V3 Screen started successfully!\n");
-    printf("Main loop beginning...\n");
-    printf("========================================\n");
 
     while (1)
     {
@@ -818,10 +800,6 @@ int main(void)
             // 重新加载配置
             load_screen_config();
             if (!g_screen_config.enabled) {
-                printf("Config changed to disabled, exiting gracefully...\n");
-                printf("========================================\n");
-                printf("XGP V3 Screen stopped (disabled in config)\n");
-                printf("========================================\n");
                 break;  // 退出主循环
             }
         }
