@@ -14,12 +14,12 @@ screen_config_t g_screen_config;
 // 初始化默认配置
 void init_default_config(void)
 {
-    g_screen_config.enabled = true;
+    g_screen_config.enabled = false;  // 默认禁用，需要用户明确启用
     g_screen_config.scroll_type = SCROLL_TYPE_SLIDE_UP;
     g_screen_config.default_delay = 5000;
     g_screen_config.skip_boot = false;
     g_screen_config.skip_splash = false;
-    
+
     // 默认所有页面启用
     for (int i = 0; i < PAGE_COUNT; i++) {
         g_screen_config.pages[i].type = (page_type_t)i;
@@ -120,12 +120,13 @@ int load_screen_config(void)
     char line[256];
     char current_section[64] = "";
     char current_section_name[64] = "";
-    
+
     init_default_config();
-    
+
     fp = fopen(CONFIG_FILE, "r");
     if (fp == NULL) {
-        printf("Config file not found, using defaults\n");
+        fprintf(stderr, "Warning: Config file %s not found, using defaults (enabled=%d)\n",
+                CONFIG_FILE, g_screen_config.enabled);
         return 0;
     }
     
@@ -191,10 +192,16 @@ int load_screen_config(void)
     
     // 重新计算页面顺序
     recalculate_page_order();
-    
-    printf("Config loaded: enabled=%d, scroll=%d, pages=%d\n",
-           g_screen_config.enabled,
+
+    printf("Config loaded from %s: enabled=%d, scroll_type=%d, pages=%d\n",
+           CONFIG_FILE, g_screen_config.enabled,
            g_screen_config.scroll_type, g_screen_config.enabled_page_count);
-    
+
+    if (!g_screen_config.enabled) {
+        printf("Screen is DISABLED in configuration\n");
+    } else if (g_screen_config.enabled_page_count == 0) {
+        printf("Warning: Screen is enabled but no pages are enabled!\n");
+    }
+
     return 0;
 }
