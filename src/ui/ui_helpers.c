@@ -4,6 +4,7 @@
 // Project name: xgp_v3
 
 #include "ui_helpers.h"
+#include <stdio.h>
 
 void _ui_bar_set_property(lv_obj_t * target, int id, int val)
 {
